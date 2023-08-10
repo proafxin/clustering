@@ -20,24 +20,83 @@ class KMeans(BaseKMeans):
             distance_metric=distance_metric,
         )
 
+        self.__euclidean = EuclideanDistance()
+
         if not self.initializer:
             self.initializer = RandomInitialization(n_clusters=self.n_clusters)
 
         if not self.distance_metric:
             self.distance_metric = EuclideanDistance()
 
-    def __update_centers(
-        self,
-        x: np.ndarray | Iterable[Iterable],
-        centers: Iterable[Iterable] | np.ndarray,
-    ):
-        pass
+    def __to_numpy(self, x: Iterable):
+        if not isinstance(x, np.ndarray):
+            x = np.array(x)
 
-    def fit(self, x: np.ndarray | Iterable[Iterable]):
+        return x
+
+    def __assign_clusters(self, x: Iterable[Iterable], centers: Iterable[Iterable]):
+        x = self.__to_numpy(x=x)
+
+        labels: dict[int, list] = {}
+        inertia: float = 0
+
+        for i, point in enumerate(x):
+            distances = point - centers
+            distances = distances**2
+            distances = np.sum(distances, axis=1)
+            label = np.argmin(distances)
+            if label not in labels:
+                labels[label] = []
+            labels[label].append(i)
+            inertia += distances[i]
+
+        return labels, inertia
+
+    def __update_centers(self, x: Iterable[Iterable], labels: dict[int, int]):
+        x = self.__to_numpy(x=x)
+
+        centers = np.zeros(shape=(len(labels.keys()), x.shape[1]))
+        for label, point_indices in labels.items():
+            points = x[point_indices]
+            centroid = np.mean(points, axis=0)
+            centers[label] = centroid
+
+        return centers
+
+    def fit(self, x: Iterable[Iterable]):
+        x = self.__to_numpy(x=x)
+
+        centers = self.initializer.initial_centers(x=x)
+
+        step = 0
+
+        self.inertia_ = []
+
+        while True:
+            centers_old = centers.copy()
+            labels, inertia = self.__assign_clusters(x=x, centers=centers)
+            centers = self.__update_centers(x=x, labels=labels)
+            self.centers_ = centers
+            self.inertia_.append(inertia)
+            step += 1
+
+            if np.all(centers, centers_old):
+                break
+
+        self.iterations_ = step
+
         return self
 
-    def predict(self, x: np.ndarray | Iterable[Iterable]) -> Iterable:
-        return []
+    def predict(self, x: Iterable[Iterable]) -> Iterable:
+        x = self.__to_numpy(x=x)
 
-    def fit_predict(self, x: np.ndarray | Iterable):
-        return []
+        labels, _ = self.__assign_clusters(x=x, centers=self.centers_)
+
+        return labels
+
+    def fit_predict(self, x: Iterable[Iterable]):
+        x = self.__to_numpy(x=x)
+
+        self.fit(x=x)
+
+        return self.predict(x=x)
