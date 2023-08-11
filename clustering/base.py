@@ -21,8 +21,8 @@ class BaseInitialization(ABC):
         self, n_clusters: int, distance_metric: DistanceMetric | None = None
     ) -> None:
         super().__init__()
-        self.n_clusters = n_clusters
 
+        self.n_clusters = n_clusters
         self.distance_metric = distance_metric
 
     @abstractmethod
@@ -35,12 +35,11 @@ class BaseKMeans(ABC):
         self,
         n_clusters: int | None,
         initializer: BaseInitialization | None = None,
-        distance_metric: DistanceMetric | None = None,
     ) -> None:
         self.initializer = None
 
         if initializer:
-            if n_clusters != initializer.n_clusters:
+            if n_clusters and n_clusters != initializer.n_clusters:
                 raise ValueError(
                     f"`n_clusters`: {n_clusters} != `initializer.n_clusters`: {initializer.n_clusters}"
                 )
@@ -53,7 +52,6 @@ class BaseKMeans(ABC):
 
             self.n_clusters = n_clusters
 
-        self.distance_metric = distance_metric
         self.iterations_ = 0
         self.inertia_ = 0
         self.centers_ = []
@@ -71,4 +69,4 @@ class BaseKMeans(ABC):
         pass
 
     def __str__(self) -> str:
-        return f"Kmeans {self.n_clusters}, {self.initializer.__class__}, {self.distance_metric.__class__}"
+        return f"Kmeans {self.n_clusters}, {self.initializer.__class__}"

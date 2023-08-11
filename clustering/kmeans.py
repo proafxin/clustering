@@ -2,7 +2,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from clustering.base import BaseInitialization, BaseKMeans, DistanceMetric
+from clustering.base import BaseInitialization, BaseKMeans
 from clustering.distance import EuclideanDistance
 from clustering.initialization import RandomInitialization
 
@@ -12,12 +12,10 @@ class KMeans(BaseKMeans):
         self,
         n_clusters: int | None = None,
         initializer: BaseInitialization | None = None,
-        distance_metric: DistanceMetric | None = None,
     ) -> None:
         super().__init__(
             n_clusters=n_clusters,
             initializer=initializer,
-            distance_metric=distance_metric,
         )
 
         self.__euclidean = EuclideanDistance()
@@ -25,8 +23,8 @@ class KMeans(BaseKMeans):
         if not self.initializer:
             self.initializer = RandomInitialization(n_clusters=self.n_clusters)
 
-        if not self.distance_metric:
-            self.distance_metric = EuclideanDistance()
+        if not self.initializer.distance_metric:
+            self.initializer.distance_metric = EuclideanDistance()
 
     def __to_numpy(self, x: Iterable):
         if not isinstance(x, np.ndarray):
@@ -41,14 +39,15 @@ class KMeans(BaseKMeans):
         inertia: float = 0
 
         for i, point in enumerate(x):
-            distances = point - centers
-            distances = distances**2
-            distances = np.sum(distances, axis=1)
+            distances = np.zeros(shape=(len(centers)))
+            for j, center in enumerate(centers):
+                distances[j] = self.initializer.distance_metric(x=point, y=center)
+
             label = np.argmin(distances)
             if label not in labels:
                 labels[label] = []
             labels[label].append(i)
-            inertia += distances[i]
+            inertia += distances[label] ** 2
 
         return labels, inertia
 
@@ -76,14 +75,15 @@ class KMeans(BaseKMeans):
             centers_old = centers.copy()
             labels, inertia = self.__assign_clusters(x=x, centers=centers)
             centers = self.__update_centers(x=x, labels=labels)
-            self.centers_ = centers
+
             self.inertia_.append(inertia)
             step += 1
 
-            if np.all(centers, centers_old):
+            if np.array_equal(centers, centers_old):
                 break
 
         self.iterations_ = step
+        self.centers_ = centers
 
         return self
 
@@ -92,7 +92,11 @@ class KMeans(BaseKMeans):
 
         labels, _ = self.__assign_clusters(x=x, centers=self.centers_)
 
-        return labels
+        labels_plain = np.zeros(shape=(x.shape[0],))
+        for label, point_indices in labels.items():
+            labels_plain[point_indices] = label
+
+        return labels_plain
 
     def fit_predict(self, x: Iterable[Iterable]):
         x = self.__to_numpy(x=x)

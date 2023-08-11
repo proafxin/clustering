@@ -7,7 +7,7 @@ from clustering.base import BaseInitialization
 
 class RandomInitialization(BaseInitialization):
     def initial_centers(self, x: Iterable[Iterable] | np.ndarray) -> Iterable[Iterable]:
-        return np.random.choice(a=x, size=self.n_clusters)
+        return x[np.random.randint(low=0, high=x.shape[0], size=self.n_clusters)]
 
 
 class KmeansPlusPlusInitialization(BaseInitialization):
@@ -26,11 +26,14 @@ class KmeansPlusPlusInitialization(BaseInitialization):
                 for center in centers:
                     distances.append(self.distance_metric(x=center, y=point))
                 probabilities.append(np.min(distances))
+            probabilities = np.array(probabilities)
             probabilities /= sum(probabilities)
 
-            centers.extend(np.random.choice(a=x, size=1, p=probabilities))
+            choice = np.random.choice(a=range(x.shape[0]), p=probabilities)
+
+            centers.append(x[choice])
 
         return centers
 
     def __first_center(self, x: np.ndarray) -> np.ndarray:
-        return np.random.choice(x)
+        return x[np.random.randint(0, x.shape[0])]
